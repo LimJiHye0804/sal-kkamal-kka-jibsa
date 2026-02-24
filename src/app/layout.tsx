@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
-import AdSenseScript from "@/components/AdSenseScript";
 import Script from "next/script";
 
 export const metadata: Metadata = {
@@ -21,19 +20,24 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const client = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
+
   return (
     <html lang="ko">
       <head>
-        <Script
-          async
-          src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${process.env.NEXT_PUBLIC_ADSENSE_CLIENT}`}
-          crossOrigin="anonymous"
-          strategy="afterInteractive"
-        />
+        {client ? (
+          <Script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${client}`}
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
+        ) : null}
       </head>
+
       <body className="antialiased">
-        <AdSenseScript />
         {children}
+
         <footer className="border-t border-zinc-800 bg-black/95 px-4 py-4 text-xs text-zinc-400">
           <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2">
             <p>© {new Date().getFullYear()} 살까말까 집사</p>
