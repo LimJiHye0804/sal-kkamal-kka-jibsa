@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import AdSlot from "@/components/AdSlot";
+import { evaluatePurchaseDecision, parseAmount } from "@/lib/decision";
 
 /** ===== 설정 ===== */
 const USER_TITLE = "아가씨";
@@ -319,17 +320,14 @@ export default function Home() {
 
   /** 판단 */
   const calculate = (nextPrice: number, nextUsagePerMonth: number, nextIncome: number) => {
-    const cpu = nextPrice / nextUsagePerMonth;
-    const burdenRate = nextPrice / nextIncome;
-
+    const { cpu, burdenRate, decision: nextDecision } = evaluatePurchaseDecision(
+      nextPrice,
+      nextUsagePerMonth,
+      nextIncome,
+    );
     setCostPerUse(cpu);
     setBurden(burdenRate);
-
-    let d: Decision = "OK";
-    if (burdenRate > 0.3 && cpu > 3000) d = "NO";
-    else if (burdenRate > 0.15 || cpu > 3000) d = "HOLD";
-
-    setDecision(d);
+    setDecision(nextDecision);
     setAct("RESULT");
   };
 
@@ -392,9 +390,8 @@ export default function Home() {
   }
 
   if (act === "BALANCE") {
-    const onlyDigits = balanceManualText.replace(/[^0-9]/g, "");
-    const parsed = onlyDigits.length > 0 ? Number.parseInt(onlyDigits, 10) : NaN;
-    const confirmDisabled = !(Number.isFinite(parsed) && parsed >= 0);
+    const parsed = parseAmount(balanceManualText);
+    const confirmDisabled = !(parsed !== null && parsed >= 0);
 
     return (
       <Page topbar={topbar}>
@@ -466,10 +463,8 @@ export default function Home() {
               setBalanceManualText("");
             }}
             onConfirm={() => {
-              const clean = balanceManualText.replace(/[^0-9]/g, "");
-              const n = Number.parseInt(clean, 10);
-              if (!Number.isFinite(n) || n < 0) return;
-              setBalance(n);
+              if (parsed === null || parsed < 0) return;
+              setBalance(parsed);
               setShowBalanceManual(false);
             }}
             confirmDisabled={confirmDisabled}
@@ -489,9 +484,8 @@ export default function Home() {
   }
 
   if (act === "INCOME") {
-    const onlyDigits = incomeManualText.replace(/[^0-9]/g, "");
-    const parsed = onlyDigits.length > 0 ? Number.parseInt(onlyDigits, 10) : NaN;
-    const confirmDisabled = !(Number.isFinite(parsed) && parsed >= 0);
+    const parsed = parseAmount(incomeManualText);
+    const confirmDisabled = !(parsed !== null && parsed >= 0);
 
     return (
       <Page topbar={topbar}>
@@ -563,10 +557,8 @@ export default function Home() {
               setIncomeManualText("");
             }}
             onConfirm={() => {
-              const clean = incomeManualText.replace(/[^0-9]/g, "");
-              const n = Number.parseInt(clean, 10);
-              if (!Number.isFinite(n) || n < 0) return;
-              setIncome(n);
+              if (parsed === null || parsed < 0) return;
+              setIncome(parsed);
               setShowIncomeManual(false);
             }}
             confirmDisabled={confirmDisabled}
@@ -627,9 +619,8 @@ export default function Home() {
   }
 
   if (act === "PRICE") {
-    const onlyDigits = priceManualText.replace(/[^0-9]/g, "");
-    const parsed = onlyDigits.length > 0 ? Number.parseInt(onlyDigits, 10) : NaN;
-    const confirmDisabled = !(Number.isFinite(parsed) && parsed > 0);
+    const parsed = parseAmount(priceManualText);
+    const confirmDisabled = !(parsed !== null && parsed > 0);
 
     return (
       <Page topbar={topbar}>
@@ -701,10 +692,8 @@ export default function Home() {
               setPriceManualText("");
             }}
             onConfirm={() => {
-              const clean = priceManualText.replace(/[^0-9]/g, "");
-              const n = Number.parseInt(clean, 10);
-              if (!Number.isFinite(n) || n <= 0) return;
-              setPrice(n);
+              if (parsed === null || parsed <= 0) return;
+              setPrice(parsed);
               setShowPriceManual(false);
             }}
             confirmDisabled={confirmDisabled}
