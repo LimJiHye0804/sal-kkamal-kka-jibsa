@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import AdSlot from "@/components/AdSlot";
 
 /** ===== 설정 ===== */
 const USER_TITLE = "아가씨";
@@ -28,40 +29,42 @@ function Page({
   topbar?: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen text-zinc-100 flex justify-center bg-black">
-      <div className="relative w-full max-w-md min-h-screen overflow-hidden">
+    <main className="min-h-dvh bg-black text-zinc-100 md:p-4">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-md flex-col overflow-hidden bg-black md:min-h-[calc(100dvh-2rem)] md:max-w-2xl md:rounded-2xl md:border md:border-white/10 lg:max-w-3xl">
         {/* 1) 배경 */}
-        <div className="absolute inset-0 z-0">
+        <div className="pointer-events-none absolute inset-0 z-0">
           <Image
             src="/bg/mansion.jpeg"
             alt="mansion background"
             fill
             priority
             className="object-cover object-center"
+            sizes="100vw"
           />
         </div>
 
         {/* 2) 오버레이 (가독성) */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-b from-black/15 via-black/45 to-black/80" />
+        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-black/15 via-black/45 to-black/80" />
 
         {/* 3) 집사 (오버레이 위, UI 아래) */}
-        <div className="absolute inset-0 z-20 pointer-events-none">
+        <div className="pointer-events-none absolute inset-0 z-20">
           <Image
             src="/char/butler.png"
             alt="butler"
             fill
             priority
             className="object-contain object-bottom opacity-90"
+            sizes="(min-width: 1024px) 1200px, (min-width: 768px) 900px, 100vw"
           />
         </div>
 
         {/* 상단바 */}
-        <div className="sticky top-0 z-30 bg-zinc-900/25 backdrop-blur border-b border-white/10">
+        <div className="sticky top-0 z-30 border-b border-white/10 bg-zinc-900/25 backdrop-blur">
           <div className="p-3">{topbar}</div>
         </div>
 
         {/* 4) UI */}
-        <div className="relative z-30 flex-1 p-4 min-h-[calc(100vh-56px)] flex flex-col justify-end">
+        <div className="relative z-30 flex flex-1 flex-col justify-end overflow-y-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {children}
         </div>
       </div>
@@ -69,12 +72,10 @@ function Page({
   );
 }
 
-
-
 function Bubble({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-zinc-800 rounded-2xl p-4 mb-4 shadow">
-      <p className="leading-relaxed whitespace-pre-line">{children}</p>
+    <div className="mb-4 rounded-2xl bg-zinc-800 p-4 shadow">
+      <p className="whitespace-pre-line leading-relaxed">{children}</p>
     </div>
   );
 }
@@ -93,15 +94,16 @@ function Option({
   return (
     <button
       type="button"
+      aria-pressed={selected === undefined ? undefined : selected}
       disabled={disabled}
       onClick={onClick}
       className={[
-        "w-full mb-2 rounded-xl border py-3 transition",
+        "mb-2 w-full rounded-xl border py-3 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200",
         disabled
-          ? "border-zinc-800 text-zinc-500 bg-zinc-900 cursor-not-allowed"
+          ? "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
           : selected
-          ? "bg-zinc-800 border-zinc-300"
-          : "border-zinc-700 hover:bg-zinc-800",
+            ? "border-zinc-300 bg-zinc-800"
+            : "border-zinc-700 hover:bg-zinc-800",
       ].join(" ")}
     >
       <div className="flex items-center justify-between px-3">
@@ -145,7 +147,7 @@ function NumberPanel({
 
       <input
         autoFocus
-        className="w-full rounded-xl bg-zinc-900/60 border border-zinc-700 p-3 outline-none"
+        className="w-full rounded-xl border border-zinc-700 bg-zinc-900/60 p-3 outline-none"
         placeholder={placeholder ?? "숫자만 입력"}
         value={value}
         inputMode="numeric"
@@ -167,7 +169,7 @@ function NumberPanel({
           className={[
             "rounded-xl border py-3",
             confirmDisabled
-              ? "border-zinc-800 text-zinc-500 bg-zinc-900 cursor-not-allowed"
+              ? "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
               : "border-zinc-300 bg-zinc-100 text-zinc-900 hover:bg-white",
           ].join(" ")}
           onClick={onConfirm}
@@ -187,16 +189,39 @@ function NumberPanel({
 export default function Home() {
   const [act, setAct] = useState<Act>("INTRO");
 
-  // history stack: 이전 화면 이동용
-  const historyRef = useRef<Act[]>([]);
+  const [history, setHistory] = useState<Act[]>([]);
+  const itemInputRef = useRef<HTMLInputElement>(null);
+  const calcTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearCalcTimer = () => {
+    if (calcTimerRef.current !== null) {
+      clearTimeout(calcTimerRef.current);
+      calcTimerRef.current = null;
+    }
+  };
+
   const pushAndGo = (next: Act) => {
-    historyRef.current.push(act);
+    clearCalcTimer();
+    setHistory((prev) => [...prev, act]);
     setAct(next);
   };
+
   const goBack = () => {
-    const prev = historyRef.current.pop();
-    if (prev) setAct(prev);
+    clearCalcTimer();
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const prevAct = next.pop();
+      if (prevAct) setAct(prevAct);
+      return next;
+    });
   };
+
+  useEffect(() => {
+    return () => {
+      clearCalcTimer();
+    };
+  }, []);
 
   /** ====== 상태 ====== */
 
@@ -213,7 +238,6 @@ export default function Home() {
   const [incomeManualText, setIncomeManualText] = useState("");
 
   // ITEM (IME 안전: uncontrolled 유지 + draft로 버튼 활성화만)
-  const itemInputRef = useRef<HTMLInputElement>(null);
   const [itemText, setItemText] = useState("");
   const [itemDraft, setItemDraft] = useState("");
   const [itemKey, setItemKey] = useState(0);
@@ -237,8 +261,10 @@ export default function Home() {
    */
 
   const resetAll = (goTo: Act = "INTRO") => {
+    clearCalcTimer();
+
     // history
-    historyRef.current = [];
+    setHistory([]);
 
     // finance
     setBalance(null);
@@ -271,7 +297,8 @@ export default function Home() {
 
   const resetTodayOnlyKeepFinance = () => {
     // ✅ Retry 전용: 재정은 유지하고 오늘의 고민만 초기화
-    historyRef.current = [];
+    clearCalcTimer();
+    setHistory([]);
 
     setItemText("");
     setItemDraft("");
@@ -291,11 +318,9 @@ export default function Home() {
   };
 
   /** 판단 */
-  const calculate = () => {
-    if (!price || !usagePerMonth || !income) return;
-
-    const cpu = price / usagePerMonth;
-    const burdenRate = price / income;
+  const calculate = (nextPrice: number, nextUsagePerMonth: number, nextIncome: number) => {
+    const cpu = nextPrice / nextUsagePerMonth;
+    const burdenRate = nextPrice / nextIncome;
 
     setCostPerUse(cpu);
     setBurden(burdenRate);
@@ -314,11 +339,11 @@ export default function Home() {
       <button
         type="button"
         onClick={goBack}
-        disabled={historyRef.current.length === 0}
+        disabled={history.length === 0}
         className={[
-          "px-3 py-2 rounded-lg border text-sm",
-          historyRef.current.length === 0
-            ? "border-zinc-800 text-zinc-500 cursor-not-allowed"
+          "rounded-lg border px-3 py-2 text-sm",
+          history.length === 0
+            ? "cursor-not-allowed border-zinc-800 text-zinc-500"
             : "border-zinc-700 hover:bg-zinc-800",
         ].join(" ")}
       >
@@ -329,7 +354,7 @@ export default function Home() {
         <button
           type="button"
           onClick={() => resetAll("INTRO")}
-          className="px-3 py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-sm"
+          className="rounded-lg border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-800"
         >
           처음
         </button>
@@ -337,7 +362,7 @@ export default function Home() {
         <button
           type="button"
           onClick={() => resetAll("BALANCE")}
-          className="px-3 py-2 rounded-lg border border-zinc-700 hover:bg-zinc-800 text-sm"
+          className="rounded-lg border border-zinc-700 px-3 py-2 text-sm hover:bg-zinc-800"
         >
           재정 수정
         </button>
@@ -352,15 +377,10 @@ export default function Home() {
       <Page topbar={topbar}>
         <Bubble>{`${USER_TITLE},\n오늘은 어떤 고민으로 이곳까지 오셨습니까?`}</Bubble>
 
-        <Option
-          label="말려주길 바랍니다"
-          onClick={() => pushAndGo("BALANCE")}
-        />
+        <Option label="말려주길 바랍니다" onClick={() => pushAndGo("BALANCE")} />
 
         <Chip>
-          <div className="text-zinc-300">
-            안내
-          </div>
+          <div className="text-zinc-300">안내</div>
           <div className="mt-1 text-sm text-zinc-200">
             본 서비스는 <b>Retry 때만</b> 재정 정보를 유지합니다.
             <br />
@@ -583,7 +603,7 @@ export default function Home() {
           ref={itemInputRef}
           autoFocus
           name="item"
-          className="w-full mb-3 rounded-xl bg-zinc-800 p-3 outline-none"
+          className="mb-3 w-full rounded-xl bg-zinc-800 p-3 outline-none"
           placeholder="예: 커피머신, 아이패드"
           defaultValue={itemText}
           onChange={(e) => setItemDraft(e.currentTarget.value)}
@@ -740,9 +760,13 @@ export default function Home() {
           label="집사에게 판단을 맡긴다"
           disabled={!usagePerMonth || !price || !income}
           onClick={() => {
-            if (!usagePerMonth) return;
+            if (!usagePerMonth || !price || !income) return;
+            clearCalcTimer();
             setAct("CALC");
-            setTimeout(calculate, 600);
+            calcTimerRef.current = setTimeout(() => {
+              calcTimerRef.current = null;
+              calculate(price, usagePerMonth, income);
+            }, 600);
           }}
         />
       </Page>
@@ -757,6 +781,10 @@ export default function Home() {
     );
   }
 
+  const showAd =
+    process.env.NEXT_PUBLIC_ADSENSE_CLIENT &&
+    process.env.NEXT_PUBLIC_ADSENSE_SLOT_RESULT;
+
   // RESULT
   return (
     <Page topbar={topbar}>
@@ -764,8 +792,8 @@ export default function Home() {
         {decision === "OK"
           ? `${USER_TITLE}, 이번엔 집사도 말릴 명분이 없습니다.`
           : decision === "HOLD"
-          ? `${USER_TITLE}, 자주 쓰신다면… 넘어가 드리죠.`
-          : `${USER_TITLE}… 이 소비에는 각오가 필요해 보입니다.`}
+            ? `${USER_TITLE}, 자주 쓰신다면… 넘어가 드리죠.`
+            : `${USER_TITLE}… 이 소비에는 각오가 필요해 보입니다.`}
       </Bubble>
 
       <Chip>
@@ -777,10 +805,16 @@ export default function Home() {
         </div>
       </Chip>
 
-      <div className="bg-zinc-800 rounded-xl p-3 mb-3 text-sm">
+      <div className="mb-3 rounded-xl bg-zinc-800 p-3 text-sm">
         <p>1회 사용 비용: ₩{costPerUse?.toFixed(0)}</p>
         <p>월 수입 대비: {(burden! * 100).toFixed(1)}%</p>
       </div>
+
+      {showAd ? (
+        <div className="mb-3 rounded-xl border border-zinc-700 bg-zinc-900/60 p-3">
+          <AdSlot slot={process.env.NEXT_PUBLIC_ADSENSE_SLOT_RESULT!} />
+        </div>
+      ) : null}
 
       {/* ✅ Retry = 재정 유지 */}
       <Option
